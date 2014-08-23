@@ -4,7 +4,10 @@
 -- Autor : Laurent Indermühle - Honiix
 -----------------------------------------------------------------------------------------------
  
+require "Apollo"
 require "Window"
+require "GameLib"
+require "Item"
  
 -----------------------------------------------------------------------------------------------
 -- Dressing Module Definition
@@ -212,18 +215,13 @@ function Dressing:OnDocumentReady()
 		-- Ajoute Dressing dans le menu interface tout en bas à gauche
 		Apollo.RegisterEventHandler("InterfaceMenuListHasLoaded", "OnInterfaceMenuListHasLoaded", self)
 		Apollo.RegisterEventHandler("ToggleDressingWindow", "OnDressingToggle", self)
-
-		----------------------------------------------------------------
-		-- Récupération des données - Nouveau items etc...
-		----------------------------------------------------------------		
-		self.tAllItems = self:GetAllItems()		
 	end
 end
 
 function Dressing:OnDressingToggle()
 	if self.wndMain:IsVisible() then
 		self.locSavedWindowLoc = self.wndMain:GetLocation()
-		self:SaveChanges() -- Pas encore utilisé
+		--self:SaveChanges() -- Pas encore écrit
 		self.wndMain:Show(false)
 	else
 		self:RefreshArmorSets()
@@ -254,6 +252,7 @@ end
 function Dressing:OnOption()
 -- Pour tester A ENLEVER
 	self:CreateArmorSet()
+	self:RefreshArmorSets()
 end
 
 -----------------------------------------------------------------------------------------------
@@ -262,7 +261,8 @@ end
 
 -- Recupère la liste des objets équipés
 function Dressing:GetAllEquippedItems()
-	local tAllEquippedItems, i = {}, 1
+	local tAllEquippedItems = {}
+	local i = 1
 	local tPlayer = GameLib.GetPlayerUnit()
 	if not tPlayer then return end
 	for _,tEquippedItem in ipairs(tPlayer:GetEquippedItems()) do
@@ -278,7 +278,8 @@ end
 
 -- Recupère la liste des objets équipable pour ce perso dans les sacs
 function Dressing:GetAllItemsInBagThatCanBeEquipped()
-	local tAllItemsInBagThatCanBeEquipped, i = {}, 1
+	local tAllItemsInBagThatCanBeEquipped = {}
+	local i = 1
 	local tPlayer = GameLib.GetPlayerUnit()
 	if not tPlayer then return end
 	for _,tItem in pairs(tPlayer:GetInventoryItems()) do
@@ -313,7 +314,7 @@ end
 
 -- Récupère la liste des objets pour un slot précis
 function Dressing:GetAllItemsForThatSlot(nSlotId)
-	if not self.tAllItems then Apollo.AddAddonErrorText(self, "Could not load item list.") end
+	if not self.tAllItems then return end
 	if not nSlotId then return end
 
 	local tSelectedItems = {}
@@ -336,7 +337,6 @@ function Dressing:CreateArmorSet()
 		self.tArmorSets = {}
 	end
 	table.insert(self.tArmorSets, ktArmorSet)
-	self:RefreshArmorSets()
 	--SendVarToRover("self.tArmorSets", self.tArmorSets)
 end
 
@@ -371,17 +371,21 @@ function Dressing:GetArmorSetBudget(tItems)
 			tBudget["nArmor"] = tBudget["nArmor"] + tItemData:GetArmor()
 			-- Parfois ceci retourne nil. Certains objet ne doivent pas avoir de propriétés?
 			if tItemData:GetDetailedInfo().tPrimary.arBudgetBasedProperties then
+				-- Parcours toutes les propriétés de l'item
 				for _,v2 in ipairs(tItemData:GetDetailedInfo().tPrimary.arBudgetBasedProperties) do
 					
-					--todo : Pour chaque propriété, stocké sa valeur dans le tableau
+					-- Pour chaque propriété, stocké sa valeur dans le tableau
 					-- 40 = Vitalité
 					-- 0 = Brutalité
 					-- 4 = Acuité
+					if tBudget.BasedProperties[v2.eProperty] == nil then
+						tBudget.BasedProperties[v2.eProperty] = v2.nValue
+					else
+						tBudget.BasedProperties[v2.eProperty] = tBudget.BasedProperties[v2.eProperty] + v2.nValue
+					end
+					-- J'ai trouvé ça dans ToolTipds.lua : Item.GetPropertyName(tCur.eProperty)
 					-- Idée : Est-ce qu'on garde le nSortOrder pour afficher les stats dans
 					-- l'ordre proposé par Carbin pour chaque classe ?
-
-					--tBudget.BasedProperties[v2.eProperty] = v2.nValue
-					--Print(v2.eProperty .. " = " .. v2.nValue)
 				end
 			end
 		end
@@ -396,10 +400,16 @@ end
 
 -- ReDessine tous les set d'armures
 function Dressing:RefreshArmorSets()
+	----------------------------------------------------------------
+	-- Récupération des données - Nouveau items etc...
+	----------------------------------------------------------------		
+	self.tAllItems = self:GetAllItems()	
+
 	if not self.tArmorSets then 
-		self:CreateArmorSet()
+		self:CreateArmorSet() -- Au premier lancement de l'addon.
 	end
 
+	-- Efface tous les set d'armures
 	self.wndMain:FindChild("MainContainer"):DestroyChildren()
 	for k,v in ipairs(self.tArmorSets) do
 		local tBudget = self:GetArmorSetBudget(v.tItems)
@@ -459,7 +469,9 @@ end
 -- Dessinne les boutons de sélection des armures dans la fenetre popup
 function Dressing:DrawItemBtn(wndParent, wndArmorBtn)
 	local tArmorBtnData = wndArmorBtn:GetData()
-	for _,v in pairs(self:GetAllItemsForThatSlot(tArmorBtnData.nArmorSlotId)) do
+	local tAllArmorForThatSlot = self:GetAllItemsForThatSlot(tArmorBtnData.nArmorSlotId)
+	if not tAllArmorForThatSlot then return end
+	for _,v in pairs(tAllArmorForThatSlot) do
 		-- TODO Afficher une armure "vide" qui permet de choisir de vider l'emplacement
 		local wndItemBtn = Apollo.LoadForm(self.xmlDoc, "ItemBtn", wndParent, self)
 		wndItemBtn:FindChild("ItemBtnIcon"):SetSprite(v.strIcon)
