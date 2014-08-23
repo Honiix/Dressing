@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Addon Author="Honiix" APIVersion="9" Name="Dressing" Description="Addon for MrFancyPants">
+    <Script Name="Dressing.lua"/>
+    <Form Name="Dressing.xml"/>
+</Addon>
