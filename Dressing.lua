@@ -371,25 +371,29 @@ function Dressing:GetArmorSetBudget(tItems)
 			tBudget["nArmor"] = tBudget["nArmor"] + tItemData:GetArmor()
 			-- Parfois ceci retourne nil. Certains objet ne doivent pas avoir de propriétés?
 			if tItemData:GetDetailedInfo().tPrimary.arBudgetBasedProperties then
-				-- Parcours toutes les propriétés de l'item
 				for _,v2 in ipairs(tItemData:GetDetailedInfo().tPrimary.arBudgetBasedProperties) do
 					
-					-- Pour chaque propriété, stocké sa valeur dans le tableau
-					-- 40 = Vitalité
-					-- 0 = Brutalité
-					-- 4 = Acuité
 					if tBudget.BasedProperties[v2.eProperty] == nil then
 						tBudget.BasedProperties[v2.eProperty] = v2.nValue
 					else
 						tBudget.BasedProperties[v2.eProperty] = tBudget.BasedProperties[v2.eProperty] + v2.nValue
 					end
+					--todo : Pour chaque propriété, stocké sa valeur dans le tableau
+					-- 40 = Vitalité
+					-- 0 = Brutalité
+					-- 4 = Acuité
 					-- J'ai trouvé ça dans ToolTipds.lua : Item.GetPropertyName(tCur.eProperty)
 					-- Idée : Est-ce qu'on garde le nSortOrder pour afficher les stats dans
 					-- l'ordre proposé par Carbin pour chaque classe ?
+
+					--tBudget.BasedProperties[v2.eProperty] = v2.nValue
+					--Print(v2.eProperty .. " = " .. Item.GetPropertyName(v2.eProperty))
+					--Print(v2.eProperty)
 				end
 			end
 		end
 	end
+	SendVarToRover("tBudget", tBudget)
 	return tBudget
 end
 
@@ -466,6 +470,24 @@ function Dressing:DrawArmorBtn(nArmorSetId, tArmorSet, wndParent)
 	end
 end
 
+-- Dessine la popdown frame
+function Dressing:DrawItemPopdownFrame(wndArmorBtn)
+	-- 1e parent est ArmorBtnSpacer
+	-- 2e parent est ArmorSetContainer
+	local wndItemPopdownFrame = wndArmorBtn:GetParent():GetParent():FindChild("ItemPopdownFrame")
+	-- Il y a de fortes chances que la fenetre contenait déjà des boutons alors on la vide
+	wndItemPopdownFrame:DestroyChildren()
+	-- Dessine un bouton par armure disponible pour ce slot.
+	-- Arg 1 dit dans quelle fenetre dessiner les boutons
+	-- Arg 2 passe l'objet qui correspond à l'armure de ce set
+	-- Dans Data de ArmorBtn on a stocké l'id du type de slot d'armure et l'id du set
+	self:DrawItemBtn(wndItemPopdownFrame, wndArmorBtn)
+	-- Arrange les boutons horizontallement et centré.
+	-- TODO décaler les boutons sous celui qui les a appelé
+	wndItemPopdownFrame:ArrangeChildrenHorz(1)
+	wndItemPopdownFrame:Show(true)
+end
+
 -- Dessinne les boutons de sélection des armures dans la fenetre popup
 function Dressing:DrawItemBtn(wndParent, wndArmorBtn)
 	local tArmorBtnData = wndArmorBtn:GetData()
@@ -498,21 +520,7 @@ end
 -- Affiche la fenetre popdown
 function Dressing:OnArmorBtn(wndHandler, wndControl)
 	-- wndHandler est ArmorBtn
-	-- 1e parent est ArmorBtnSpacer
-	-- 2e parent est ArmorSetContainer
-	self.wndItemPopdownFrame = wndHandler:GetParent():GetParent():FindChild("ItemPopdownFrame")
-	-- Il y a de fortes chances que la fenetre contenait déjà des boutons alors on la vide
-	self.wndItemPopdownFrame:DestroyChildren()
-	-- Dessine un bouton par armure disponible pour ce slot.
-	-- Arg 1 dit dans quelle fenetre dessiner les boutons
-	-- Arg 2 passe l'objet qui correspond à l'armure de ce set
-	-- Dans Data de ArmorBtn on a stocké l'id du type de slot d'armure et l'id du set
-	self:DrawItemBtn(self.wndItemPopdownFrame, wndHandler)
-	-- Arrange les boutons horizontallement et centré.
-	-- TODO décaler les boutons sous celui qui les a appelé
-	self.wndItemPopdownFrame:ArrangeChildrenHorz(1)
-	self.wndItemPopdownFrame:Show(true)
-
+	self:DrawItemPopdownFrame(wndHandler)
 end
 
 -- when a armor is clicked in the popdown window
