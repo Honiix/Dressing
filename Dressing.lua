@@ -369,6 +369,18 @@ function Dressing:GetArmorSetBudget(tItems)
 		if v.nItemId then
 			local tItemData = Item.GetDataFromId(v.nItemId)
 			tBudget["nArmor"] = tBudget["nArmor"] + tItemData:GetArmor()
+			--Item.GetBaseItemPower
+			--Item.GetBasePropertiesKeyed
+			--Item.GetDurability -- D'autres addons d'occupent d'indiquer si on doit réparer.
+			--Item.GetItemPower
+    		--Item.GetItemQuality
+    		--Item.GetMaxDurability -- D'autres addons d'occupent d'indiquer si on doit réparer.
+    		--Item.GetPowerLevel
+    		--Item.GetPropertiesKeyed
+    		--Item.GetPropertiesSequential
+    		--Item.GetPropertyString --Quelle différence avec Item.GetPropertyName ???
+    		--Item.GetRequiredItemPower
+
 			-- Parfois ceci retourne nil. Certains objet ne doivent pas avoir de propriétés?
 			if tItemData:GetDetailedInfo().tPrimary.arBudgetBasedProperties then
 				for _,v2 in ipairs(tItemData:GetDetailedInfo().tPrimary.arBudgetBasedProperties) do
@@ -378,7 +390,7 @@ function Dressing:GetArmorSetBudget(tItems)
 					else
 						tBudget.BasedProperties[v2.eProperty] = tBudget.BasedProperties[v2.eProperty] + v2.nValue
 					end
-					--todo : Pour chaque propriété, stocké sa valeur dans le tableau
+					-- Pour chaque propriété, stocké sa valeur dans le tableau
 					-- 40 = Vitalité
 					-- 0 = Brutalité
 					-- 4 = Acuité
@@ -393,7 +405,7 @@ function Dressing:GetArmorSetBudget(tItems)
 			end
 		end
 	end
-	SendVarToRover("tBudget", tBudget)
+	-- SendVarToRover("tBudget", tBudget)
 	return tBudget
 end
 
@@ -432,6 +444,14 @@ function Dressing:DrawArmorSet(nArmorSetId, tArmorSet, tBudget)
 	-- Dessine les boutons d'armures et les alignes horizontalement
 	self:DrawArmorBtn(nArmorSetId, tArmorSet, self.wndArmorSet:FindChild("ArmorSetContainer"))
 	self.wndArmorSet:FindChild("ArmorSetContainer"):ArrangeChildrenHorz(0)
+
+	-- Affichage de la somme des stats des objets
+	-- Armure : tBudget.nArmor
+	local k,v = nil, nil
+	for k,v in ipairs(tBudget.BasedProperties) do
+		-- Nom de la stats : Item.GetPropertyName(k)
+		-- Valeur de cette stat : v
+	end
 end
 
 -- Dessine les boutons de sélection d'armures dans la fenêtre wndArmorSet
@@ -477,11 +497,37 @@ function Dressing:DrawItemPopdownFrame(wndArmorBtn)
 	local wndItemPopdownFrame = wndArmorBtn:GetParent():GetParent():FindChild("ItemPopdownFrame")
 	-- Il y a de fortes chances que la fenetre contenait déjà des boutons alors on la vide
 	wndItemPopdownFrame:DestroyChildren()
+
+	local tArmorBtnData = wndArmorBtn:GetData()
+	local tAllArmorForThatSlot = self:GetAllItemsForThatSlot(tArmorBtnData.nArmorSlotId)
+	if not tAllArmorForThatSlot then return end
+
+	-- D'après le nombre de bouton, on va definir la largeur de la Popdown
+	-- Et d'après la potition du bouton qu'on a cliquer, on va essayer de centrer
+	-- les itemBtn dessous.
+	local nItemsCount = table.getn(tAllArmorForThatSlot)
+
+	local nLeft, nTop, nRight, nBottom = wndItemPopdownFrame:GetAnchorOffsets()
+	local nLeftContainer, nTopContainer, nRightContainer, nBottomContainer = wndArmorBtn:GetParent():GetParent():GetAnchorOffsets()
+	local nLeftCaller, nTopCaller, nRightCaller, nBottomCaller = wndArmorBtn:GetAnchorOffsets()
+	-- nLeft ici représente le coté gauche de la fenetre principale. Il ne faut pas aller plus à gauche.
+	-- Pareil pour nRight, on ne doit pas aller plus à droite.
+
+	-- Pour l'instant un ItemBtn fait 50 px mais cela pourrait changer. Je n'arrive pas calculer
+	-- la taille du bouton depuis ici car il ne sera pas charger avant l'appel à DrawItemBtn
+	local nItemBtnSize = 50
+
+	local nTotalWidth = nItemBtnSize * nItemsCount
+
+	--todo wndItemPopdownFrame:SetAnchorOffsets(nLeft, )
+
+
 	-- Dessine un bouton par armure disponible pour ce slot.
 	-- Arg 1 dit dans quelle fenetre dessiner les boutons
 	-- Arg 2 passe l'objet qui correspond à l'armure de ce set
 	-- Dans Data de ArmorBtn on a stocké l'id du type de slot d'armure et l'id du set
-	self:DrawItemBtn(wndItemPopdownFrame, wndArmorBtn)
+	-- Arg 3 passe le tableau contenant les items à afficher
+	self:DrawItemBtn(wndItemPopdownFrame, wndArmorBtn, tAllArmorForThatSlot)
 	-- Arrange les boutons horizontallement et centré.
 	-- TODO décaler les boutons sous celui qui les a appelé
 	wndItemPopdownFrame:ArrangeChildrenHorz(1)
@@ -489,10 +535,7 @@ function Dressing:DrawItemPopdownFrame(wndArmorBtn)
 end
 
 -- Dessinne les boutons de sélection des armures dans la fenetre popup
-function Dressing:DrawItemBtn(wndParent, wndArmorBtn)
-	local tArmorBtnData = wndArmorBtn:GetData()
-	local tAllArmorForThatSlot = self:GetAllItemsForThatSlot(tArmorBtnData.nArmorSlotId)
-	if not tAllArmorForThatSlot then return end
+function Dressing:DrawItemBtn(wndParent, wndArmorBtn, tAllArmorForThatSlot)
 	for _,v in pairs(tAllArmorForThatSlot) do
 		-- TODO Afficher une armure "vide" qui permet de choisir de vider l'emplacement
 		local wndItemBtn = Apollo.LoadForm(self.xmlDoc, "ItemBtn", wndParent, self)
