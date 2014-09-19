@@ -491,6 +491,8 @@ function Dressing:DrawArmorBtn(nArmorSetId, tArmorSet, wndParent)
 end
 
 -- Dessine la popdown frame
+-- A partir de la position du bouton qu'on a cliqué, on va afficher les itemBtn dessous.
+-- En commencant par le plus à gauche pile en dessous et les autres qui s'étallent sur la droite.
 function Dressing:DrawItemPopdownFrame(wndArmorBtn)
 	-- 1e parent est ArmorBtnSpacer
 	-- 2e parent est ArmorSetContainer
@@ -502,34 +504,58 @@ function Dressing:DrawItemPopdownFrame(wndArmorBtn)
 	local tAllArmorForThatSlot = self:GetAllItemsForThatSlot(tArmorBtnData.nArmorSlotId)
 	if not tAllArmorForThatSlot then return end
 
-	-- D'après le nombre de bouton, on va definir la largeur de la Popdown
-	-- Et d'après la potition du bouton qu'on a cliquer, on va essayer de centrer
-	-- les itemBtn dessous.
+	-- Pour définir la largeur de la Popdown, il faut connaître le nombre d'armure à afficher
 	local nItemsCount = table.getn(tAllArmorForThatSlot)
 
-	local nLeft, nTop, nRight, nBottom = wndItemPopdownFrame:GetAnchorOffsets()
-	local nLeftContainer, nTopContainer, nRightContainer, nBottomContainer = wndArmorBtn:GetParent():GetParent():GetAnchorOffsets()
-	local nLeftCaller, nTopCaller, nRightCaller, nBottomCaller = wndArmorBtn:GetAnchorOffsets()
-	-- nLeft ici représente le coté gauche de la fenetre principale. Il ne faut pas aller plus à gauche.
-	-- Pareil pour nRight, on ne doit pas aller plus à droite.
+	-- Comme le btn est dans un spacer, on doit récupérer la position de ce container
+	-- car c'est ce dernier qui a une position relative intéressante
+	local nLeftPosClickedBtn, _ = wndArmorBtn:GetParent():GetPos()
+
+	-- Comme le bouton est dessiné dans un spacer, qui possède une marge gauche, il faut récupérer la valeur de cette marge
+	local nLeftMargin, _ = wndArmorBtn:GetPos()
+	local nLeft = nLeftPosClickedBtn + nLeftMargin
+
+	-- Nous avons besoin de savoir combien de place on dispose. Comme notre frame est collé à gauche et à droite du container on peut faire :
+	local nAvailableWidth = wndItemPopdownFrame:GetParent():GetWidth()
 
 	-- Pour l'instant un ItemBtn fait 50 px mais cela pourrait changer. Je n'arrive pas calculer
 	-- la taille du bouton depuis ici car il ne sera pas charger avant l'appel à DrawItemBtn
-	local nItemBtnSize = 50
+	local nItemBtnSize = 46
 
-	local nTotalWidth = nItemBtnSize * nItemsCount
+	local nNeededWidth = nItemBtnSize * nItemsCount
 
-	--todo wndItemPopdownFrame:SetAnchorOffsets(nLeft, )
+	if nNeededWidth > nAvailableWidth then
+		print("Time to salvage!")
+		-- TODO : Trouver une solution plus élégante. Comme proposer une fenetre avec tous les 
+		-- objet de cet "itemSlotId" avec possibilité de salvage.
+	elseif nNeededWidth <= nAvailableWidth then
+		-- Est-ce que la valeur de la marge gauche va nous faire dépasser à droite ?
+		if nLeft + nNeededWidth > nAvailableWidth then
+			nLeft = nAvailableWidth - nNeededWidth
+		end
 
+		-- Calcul du right anchor. On a besoin d'une valeur négative pour s'éloigner de la limite droite en direction de la gauche
+		nRight = 0 - (nAvailableWidth - (nLeft + nNeededWidth))
+
+		-- ArrangeChildren met une légère marge avant d'afficher le premier objet (je crois)
+		-- Ainsi la limite droite de la frame se dessine 2-3 pixels sous le dernier item affiché.
+		-- Donc je rajoute une légère marge pour corriger (nRight étant négatif, j'utilise le signe +)
+		nRight = nRight + 5
+		
+		-- On récupère les AnchorOffsets haut et bas
+		local _, nTop, _, nBottom = wndItemPopdownFrame:GetAnchorOffsets()
+
+		-- Et finalement, on positionne notre frame
+		wndItemPopdownFrame:SetAnchorOffsets(nLeft, nTop, nRight, nBottom)
+	end
 
 	-- Dessine un bouton par armure disponible pour ce slot.
 	-- Arg 1 dit dans quelle fenetre dessiner les boutons
-	-- Arg 2 passe l'objet qui correspond à l'armure de ce set
+	-- Arg 2 passe l'objet qui correspond à l'armure de ce set qu'on a cliqué
 	-- Dans Data de ArmorBtn on a stocké l'id du type de slot d'armure et l'id du set
 	-- Arg 3 passe le tableau contenant les items à afficher
 	self:DrawItemBtn(wndItemPopdownFrame, wndArmorBtn, tAllArmorForThatSlot)
 	-- Arrange les boutons horizontallement et centré.
-	-- TODO décaler les boutons sous celui qui les a appelé
 	wndItemPopdownFrame:ArrangeChildrenHorz(1)
 	wndItemPopdownFrame:Show(true)
 end
