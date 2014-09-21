@@ -297,6 +297,9 @@ function Dressing:OnGenerateTooltip(wndControl, wndHandler, tType, item)
 	if wndControl ~= wndHandler then return end
 	wndControl:SetTooltipDoc(nil)
 	if item ~= nil then
+		-- Si on veut comparer l'item à celui qui est équipé, il faut récupérer ça avec la ligne ci-dessous
+		-- local itemEquipped = item:GetEquippedItemForItemType()
+		-- Et remplacer itemCompare = false par itemCompare = itemEquipped
 		Tooltip.GetItemTooltipForm(self, wndControl, item, {bPrimary = true, bSelling = false, itemCompare = false})
 	end
 end
