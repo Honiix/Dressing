@@ -255,6 +255,52 @@ function Dressing:OnOption()
 	self:RefreshArmorSets()
 end
 
+-- wndControl = ArmorBtn
+-- wndHandler = ArmorBtnIcon
+function Dressing:OnGenerateArmorBtnTooltip(wndControl, wndHandler, _, _, _)
+
+	local tBtnData = wndControl:GetData()
+	-- parcourir self.tArmorSets et y retrouver l'id de l'objet survolé
+	for k,v in pairs(self.tArmorSets) do
+		if k == tBtnData.nArmorSetId then
+			for _,j in pairs(v.tItems) do
+				if j.nArmorSlotId == tBtnData.nArmorSlotId then
+					nArmorId = j.nItemId
+					break
+				end
+			end
+		end
+	end
+
+	if nArmorId then
+		-- Je n'ai aucune idée de l'utilité de tType. Seul tItemData doit correspondre à un userdata d'une armure.
+		local tItemData = Item.GetDataFromId(nArmorId)
+		self:OnGenerateTooltip(wndControl, wndHandler, tType, tItemData)
+	end
+end
+
+-- wndControl = ItemBtn
+-- wndHandler = ItemBtnIcon
+function Dressing:OnGenerateItemBtnTooltip(wndControl, wndHandler, _, _, _)
+	SendVarToRover("wndControl",wndControl)
+	SendVarToRover("wndHandler",wndHandler)
+	local tBtnData = wndControl:GetData()
+
+	if tBtnData.nItemId then
+		local tItemData = Item.GetDataFromId(tBtnData.nItemId)
+		self:OnGenerateTooltip(wndControl, wndHandler, tType, tItemData)
+	end
+end
+
+-- Copie de InventoryBag:OnGenerateTooltip
+function Dressing:OnGenerateTooltip(wndControl, wndHandler, tType, item)
+	if wndControl ~= wndHandler then return end
+	wndControl:SetTooltipDoc(nil)
+	if item ~= nil then
+		Tooltip.GetItemTooltipForm(self, wndControl, item, {bPrimary = true, bSelling = false, itemCompare = false})
+	end
+end
+
 -----------------------------------------------------------------------------------------------
 -- Dressing Functions
 -----------------------------------------------------------------------------------------------
@@ -518,7 +564,7 @@ function Dressing:DrawItemPopdownFrame(wndArmorBtn)
 	-- Nous avons besoin de savoir combien de place on dispose. Comme notre frame est collé à gauche et à droite du container on peut faire :
 	local nAvailableWidth = wndItemPopdownFrame:GetParent():GetWidth()
 
-	-- Pour l'instant un ItemBtn fait 50 px mais cela pourrait changer. Je n'arrive pas calculer
+	-- Pour l'instant un ItemBtn fait 46 px mais cela pourrait changer. Je n'arrive pas calculer
 	-- la taille du bouton depuis ici car il ne sera pas charger avant l'appel à DrawItemBtn
 	local nItemBtnSize = 46
 
@@ -531,7 +577,7 @@ function Dressing:DrawItemPopdownFrame(wndArmorBtn)
 	elseif nNeededWidth <= nAvailableWidth then
 		-- Est-ce que la valeur de la marge gauche va nous faire dépasser à droite ?
 		if nLeft + nNeededWidth > nAvailableWidth then
-			nLeft = nAvailableWidth - nNeededWidth
+			nLeft = nAvailableWidth - nNeededWidth -- Ceci n'a jamais été testé !
 		end
 
 		-- Calcul du right anchor. On a besoin d'une valeur négative pour s'éloigner de la limite droite en direction de la gauche
