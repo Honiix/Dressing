@@ -255,45 +255,19 @@ function Dressing:OnOption()
 	self:RefreshArmorSets()
 end
 
--- wndControl = ArmorBtn
--- wndHandler = ArmorBtnIcon
-function Dressing:OnGenerateArmorBtnTooltip(wndControl, wndHandler, _, _, _)
-
-	local tBtnData = wndControl:GetData()
-	-- parcourir self.tArmorSets et y retrouver l'id de l'objet survolé
-	for k,v in pairs(self.tArmorSets) do
-		if k == tBtnData.nArmorSetId then
-			for _,j in pairs(v.tItems) do
-				if j.nArmorSlotId == tBtnData.nArmorSlotId then
-					nArmorId = j.nItemId
-					break
-				end
-			end
-		end
-	end
-
-	if nArmorId then
-		-- Je n'ai aucune idée de l'utilité de tType. Seul tItemData doit correspondre à un userdata d'une armure.
-		local tItemData = Item.GetDataFromId(nArmorId)
-		self:OnGenerateTooltip(wndControl, wndHandler, tType, tItemData)
-	end
-end
-
--- wndControl = ItemBtn
--- wndHandler = ItemBtnIcon
-function Dressing:OnGenerateItemBtnTooltip(wndControl, wndHandler, _, _, _)
-	SendVarToRover("wndControl",wndControl)
-	SendVarToRover("wndHandler",wndHandler)
+-- wndControl = ArmorBtn or ItemBtn
+-- wndHandler = ArmorBtnIcon or ItemBtnIcon
+function Dressing:OnGenerateFakeTooltip(wndControl, wndHandler, _, _, _)
 	local tBtnData = wndControl:GetData()
 
 	if tBtnData.nItemId then
 		local tItemData = Item.GetDataFromId(tBtnData.nItemId)
-		self:OnGenerateTooltip(wndControl, wndHandler, tType, tItemData)
+		self:OnGenerateTooltip(wndControl, wndHandler, nil, tItemData)
 	end
 end
 
 -- Copie de InventoryBag:OnGenerateTooltip
-function Dressing:OnGenerateTooltip(wndControl, wndHandler, tType, item)
+function Dressing:OnGenerateTooltip(wndControl, wndHandler, _, item)
 	if wndControl ~= wndHandler then return end
 	wndControl:SetTooltipDoc(nil)
 	if item ~= nil then
@@ -534,7 +508,11 @@ function Dressing:DrawArmorBtn(nArmorSetId, tArmorSet, wndParent)
 
 		-- Stock le numéro du set d'armure
 		-- et le slot d'armure auquel apartient ce bouton
-		local tBtnInfo = {["nArmorSetId"] = nArmorSetId, ["nArmorSlotId"] = v.nArmorSlotId}
+		local tBtnInfo = {
+			["nArmorSetId"] = nArmorSetId, 
+			["nArmorSlotId"] = v.nArmorSlotId,
+			["nItemId"] = v.nItemId
+		}
 		wndArmorBtnSpacer:FindChild("ArmorBtn"):SetData(tBtnInfo)
 	end
 end
