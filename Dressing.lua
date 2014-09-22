@@ -559,9 +559,9 @@ function Dressing:DrawItemPopdownFrame(wndArmorBtn)
 	-- Nous avons besoin de savoir combien de place on dispose. Comme notre frame est collé à gauche et à droite du container on peut faire :
 	local nAvailableWidth = wndItemPopdownFrame:GetParent():GetWidth()
 
-	-- Pour l'instant un ItemBtn fait 46 px mais cela pourrait changer. Je n'arrive pas calculer
+	-- Pour l'instant un ItemBtn fait 46 px + 2px de marge mais cela pourrait changer. Je n'arrive pas calculer
 	-- la taille du bouton depuis ici car il ne sera pas charger avant l'appel à DrawItemBtn
-	local nItemBtnSize = 46
+	local nItemBtnSize = 48
 
 	local nNeededWidth = nItemBtnSize * nItemsCount
 
@@ -579,9 +579,9 @@ function Dressing:DrawItemPopdownFrame(wndArmorBtn)
 		nRight = 0 - (nAvailableWidth - (nLeft + nNeededWidth))
 
 		-- ArrangeChildren met une légère marge avant d'afficher le premier objet (je crois)
-		-- Ainsi la limite droite de la frame se dessine 2-3 pixels sous le dernier item affiché.
+		-- Ainsi la limite droite de la frame se dessine quelques pixels sous le dernier item affiché.
 		-- Donc je rajoute une légère marge pour corriger (nRight étant négatif, j'utilise le signe +)
-		nRight = nRight + 5
+		nRight = nRight + 7
 		
 		-- On récupère les AnchorOffsets haut et bas
 		local _, nTop, _, nBottom = wndItemPopdownFrame:GetAnchorOffsets()
@@ -603,10 +603,10 @@ end
 
 -- Dessinne les boutons de sélection des armures dans la fenetre popup
 function Dressing:DrawItemBtn(wndParent, wndArmorBtn, tAllArmorForThatSlot)
-	SendVarToRover("tAllArmorForThatSlot",tAllArmorForThatSlot)
 	for _,v in pairs(tAllArmorForThatSlot) do
 		-- TODO Afficher une armure "vide" qui permet de choisir de vider l'emplacement
-		local wndItemBtn = Apollo.LoadForm(self.xmlDoc, "ItemBtn", wndParent, self)
+		local wndItemBtnSpacer = Apollo.LoadForm(self.xmlDoc, "ItemBtnSpacer", wndParent, self)
+		local wndItemBtn = wndItemBtnSpacer:FindChild("ItemBtn")
 		wndItemBtn:FindChild("ItemBtnIcon"):SetSprite(v.strIcon)
 		wndItemBtn:FindChild("ItemBtnBorder"):SetSprite(ktItemQualitySprites[v.nItemQuality])
 
