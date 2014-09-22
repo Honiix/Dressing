@@ -27,6 +27,17 @@ local knBtnSize = {
 	["big"] 	= 50
 }
 
+-- Code couleur de qualité des objets. Pour tracer les bordures autour des armures
+local ktItemQualitySprites = {
+	[1] = 'BK3:UI_BK3_ItemQualityGrey',
+	[2] = 'BK3:UI_BK3_ItemQualityWhite',
+	[3] = 'BK3:UI_BK3_ItemQualityGreen',
+	[4] = 'BK3:UI_BK3_ItemQualityBlue',
+	[5] = 'BK3:UI_BK3_ItemQualityPurple',
+	[6] = 'BK3:UI_BK3_ItemQualityOrange',
+	[7] = 'BK3:UI_BK3_ItemQualityMagenta',
+}
+
 -- Ces données servent à dessiner les boutons qui vont contenir les icones des
 -- pièces d'armures sélectionnée pour un set.
 -- Il est donc facile de choisir ici ce qu'on veut prendre en compte ou non.
@@ -292,7 +303,8 @@ function Dressing:GetAllEquippedItems()
 		tAllEquippedItems[i] = { 
 			["nItemId"] = tEquippedItem:GetItemId(),
 			["nArmorSlotId"] = tEquippedItem:GetSlot(),
-			["strIcon"] = tEquippedItem:GetIcon()
+			["strIcon"] = tEquippedItem:GetIcon(),
+			["nItemQuality"] = tEquippedItem:GetItemQuality()
 		}
 		i = i + 1
 	end
@@ -310,7 +322,8 @@ function Dressing:GetAllItemsInBagThatCanBeEquipped()
 			tAllItemsInBagThatCanBeEquipped[i] = { 
 				["nItemId"] = tItem.itemInBag:GetItemId(),
 				["nArmorSlotId"] = tItem.itemInBag:GetSlot(),
-				["strIcon"] = tItem.itemInBag:GetIcon()
+				["strIcon"] = tItem.itemInBag:GetIcon(),
+				["nItemQuality"] = tItem.itemInBag:GetItemQuality()
 			}
 			i = i + 1
 		end
@@ -502,6 +515,7 @@ function Dressing:DrawArmorBtn(nArmorSetId, tArmorSet, wndParent)
 		if v.nItemId then
 			local tItem = Item.GetDataFromId(v.nItemId)
 			wndArmorBtnSpacer:FindChild("ArmorBtn"):FindChild("ArmorBtnIcon"):SetSprite(tItem:GetIcon())
+			wndArmorBtnSpacer:FindChild("ArmorBtn"):FindChild("ArmorBtnBorder"):SetSprite(ktItemQualitySprites[tItem:GetItemQuality()])
 		else
 			wndArmorBtnSpacer:FindChild("ArmorBtn"):FindChild("ArmorBtnIcon"):SetSprite(v.strSpriteWhenEmpty)
 		end
@@ -589,10 +603,12 @@ end
 
 -- Dessinne les boutons de sélection des armures dans la fenetre popup
 function Dressing:DrawItemBtn(wndParent, wndArmorBtn, tAllArmorForThatSlot)
+	SendVarToRover("tAllArmorForThatSlot",tAllArmorForThatSlot)
 	for _,v in pairs(tAllArmorForThatSlot) do
 		-- TODO Afficher une armure "vide" qui permet de choisir de vider l'emplacement
 		local wndItemBtn = Apollo.LoadForm(self.xmlDoc, "ItemBtn", wndParent, self)
 		wndItemBtn:FindChild("ItemBtnIcon"):SetSprite(v.strIcon)
+		wndItemBtn:FindChild("ItemBtnBorder"):SetSprite(ktItemQualitySprites[v.nItemQuality])
 
 		-- Stock les données du bouton d'amure cliqué
 		-- Et aussi le numéro d'id de l'armure (id du jeu donc, utile pour GetDataFromId)
