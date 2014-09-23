@@ -122,7 +122,7 @@ local ktEquippableArmorSlot = {
 
 -- Table vide qu'on va utiliser pour le premier lancement de l'Addon
 local ktArmorSet = {
-		["strName"] = "Mon Premier Set",
+		["strName"] = "Give me a name",
 		["tItems"] = ktEquippableArmorSlot
 }
 
@@ -177,9 +177,12 @@ function Dressing:OnRestore(eType, tSavedData)
 		if tSavedData.tArmorSets then
 			self.tArmorSets = tSavedData.tArmorSets
 		else
-			-- Si on a pas déjà de set sauvegardé, on créer le premier (vide)
+			-- Si aucun ArmorSet sauvegardé, on créer le premier
+			self.tArmorSets = {}
 			self.tArmorSets = ktArmorSet
 		end
+
+		-- Repositionne la fenêtre principale à son dernier emplacement
 		if tSavedData.tWindowLocation then
 			self.locSavedWindowLoc 	= WindowLocation.new(tSavedData.tWindowLocation)
 		end
@@ -196,7 +199,7 @@ function Dressing:OnLoad()
 end
 
 -----------------------------------------------------------------------------------------------
--- Dressing OnDocumentReady
+-- Dressing Events
 -----------------------------------------------------------------------------------------------
 function Dressing:OnDocumentReady()
 
@@ -232,7 +235,6 @@ end
 function Dressing:OnDressingToggle()
 	if self.wndMain:IsVisible() then
 		self.locSavedWindowLoc = self.wndMain:GetLocation()
-		--self:SaveChanges() -- Pas encore écrit
 		self.wndMain:Show(false)
 	else
 		self:RefreshArmorSets()
@@ -249,20 +251,35 @@ function Dressing:OnInterfaceMenuListHasLoaded()
 	Event_FireGenericEvent("InterfaceMenuList_NewAddOn","Dressing", {"ToggleDressingWindow", "", ""})
 end
 
--- when the Cancel button is clicked
-function Dressing:OnCancel()
+-- when close button is clicked
+function Dressing:OnClose()
+	self.locSavedWindowLoc = self.wndMain:GetLocation()
 	self.wndMain:Close() -- hide the window
 end
 
--- when the main windows is closed
-function Dressing:OnClose()
-	self.locSavedWindowLoc = self.wndMain:GetLocation()
+-- when the AddArmorSet button is clicked
+function Dressing:OnAddArmorSet()
+	self:CreateArmorSet()
+	self:RefreshArmorSets()
 end
 
--- when the option button is clicked
-function Dressing:OnOption()
--- Pour tester A ENLEVER
-	self:CreateArmorSet()
+-- when the Delete ArmorSet button is clicked
+function Dressing:OnInvokeDeleteArmorSet(wndControl)
+	self.wndDeleteConfirm = Apollo.LoadForm(self.xmlDoc, "ArmorSetDeleteNotice", nil, self)
+	self.wndDeleteConfirm:SetData(wndControl:GetData())
+	self.wndDeleteConfirm:Show(true)
+	self.wndDeleteConfirm:ToFront()
+end
+
+-- When the Cancel button is clicked in the Delete Armorset delete notice
+function Dressing:OnDeleteCancel()
+	self.wndDeleteConfirm:Close()
+end
+
+-- when the Delete button is clicked in the Delete Armorset delete notice
+function Dressing:OnDeleteConfirm()
+	table.remove(self.tArmorSets, self.wndDeleteConfirm:GetData())
+	self:OnDeleteCancel()
 	self:RefreshArmorSets()
 end
 
@@ -289,6 +306,53 @@ function Dressing:OnGenerateTooltip(wndControl, wndHandler, _, item)
 	end
 end
 
+-- Quand on edit le nom d'un set d'armure
+function Dressing:OnArmorSetNameChange(wndControl, wndHandler)
+	local nArmorSetId = wndControl:GetData()
+
+	if nArmorSetId then
+		-- parcourir self.tArmorSets et y écrire le nouveau nom
+		for k,v in ipairs(self.tArmorSets) do
+			if k == nArmorSetId then
+				v.strName = wndControl:GetText()
+				break
+			end
+		end
+	end
+end
+
+-- when a armor is cliked in the wndArmorSet
+-- Affiche la fenetre popdown
+function Dressing:OnArmorBtn(wndHandler, wndControl)
+	-- wndHandler est ArmorBtn
+	self:DrawItemPopdownFrame(wndHandler)
+end
+
+-- when a armor is clicked in the popdown window
+-- Valide le choix de l'armure
+function Dressing:OnChooseItemBtn(wndHandler, wndControl)
+	local tArmorBtnAndItemInfo = wndHandler:GetData()
+	-- Pour info : tArmorBtnAndItemInfo.nItemId
+	-- Pour info : tArmorBtnAndItemInfo.wndArmorBtn
+
+	local tBtnData = tArmorBtnAndItemInfo.wndArmorBtn:GetData()
+	-- Pour info : tBtnData.nArmorSetId
+	-- Pour info : tBtnData.nArmorSlotId
+
+	-- parcourir self.tArmorSets et y écrire la variable wndArmorBtn.nItemId
+	for k,v in ipairs(self.tArmorSets) do
+		if k == tBtnData.nArmorSetId then
+			for _,j in ipairs(v.tItems) do
+				if j.nArmorSlotId == tBtnData.nArmorSlotId then
+					j.nItemId = tArmorBtnAndItemInfo.nItemId
+					break
+				end
+			end
+		end
+	end
+	self:RefreshArmorSets()
+end
+
 -----------------------------------------------------------------------------------------------
 -- Dressing Functions
 -----------------------------------------------------------------------------------------------
@@ -299,7 +363,7 @@ function Dressing:GetAllEquippedItems()
 	local i = 1
 	local tPlayer = GameLib.GetPlayerUnit()
 	if not tPlayer then return end
-	for _,tEquippedItem in ipairs(tPlayer:GetEquippedItems()) do
+	for _,tEquippedItem in pairs(tPlayer:GetEquippedItems()) do
 		tAllEquippedItems[i] = { 
 			["nItemId"] = tEquippedItem:GetItemId(),
 			["nArmorSlotId"] = tEquippedItem:GetSlot(),
@@ -367,13 +431,25 @@ function Dressing:GetAllItemsForThatSlot(nSlotId)
 	return tSelectedItems
 end
 
+-- From http://stackoverflow.com/questions/640642/how-do-you-copy-a-lua-table-by-value
+function Dressing:DeepCopy(orig)
+    local orig_type = type(orig)
+    local copy
+    if orig_type == 'table' then
+        copy = {}
+        for orig_key, orig_value in next, orig, nil do
+            copy[self:DeepCopy(orig_key)] = self:DeepCopy(orig_value)
+        end
+        setmetatable(copy, self:DeepCopy(getmetatable(orig)))
+    else -- number, string, boolean, etc
+        copy = orig
+    end
+    return copy
+end
+
 -- Créer un nouveau set d'armure
 function Dressing:CreateArmorSet()
-	if not self.tArmorSets then
-		self.tArmorSets = {}
-	end
-	table.insert(self.tArmorSets, ktArmorSet)
-	--SendVarToRover("self.tArmorSets", self.tArmorSets)
+	table.insert(self.tArmorSets, self:DeepCopy(ktArmorSet))
 end
 
 -- retourne la taille qu'un bouton devrait avoir en pixel
@@ -387,20 +463,12 @@ function Dressing:GetButtonSize(strSize)
 	end
 end
 
--- Sauvegardes toutes les modifs qu'on a pu faire avant de fermer la fenetre
-function Dressing:SaveChanges()
-	-- J'avais pensé enregistrer le nom des sets comme ceci.
-	-- Car on peut taper directement dans le champs texte pour changer le nom
-	-- Et comme ça on peut se passer de créer un bouton "Save" à coté de chaque objet modifiable
-end
-
 -- Calcul les attribus d'un set (Brutalité, finessse, ...)
 function Dressing:GetArmorSetBudget(tItems)
 	local tBudget = {}
 	tBudget.nArmor = 0
 	tBudget.BasedProperties = {}
 	if not tItems then return end
-	--SendVarToRover("tItems", tItems)
 	for _,v in ipairs(tItems) do
 		if v.nItemId then
 			local tItemData = Item.GetDataFromId(v.nItemId)
@@ -452,12 +520,13 @@ end
 
 -- ReDessine tous les set d'armures
 function Dressing:RefreshArmorSets()
-	----------------------------------------------------------------
-	-- Récupération des données - Nouveau items etc...
-	----------------------------------------------------------------		
+	-- Récupération des items équipé et dans les sacs
 	self.tAllItems = self:GetAllItems()	
 
-	if not self.tArmorSets then 
+	-- Ce test est présent aussi dans OnRestore. Mais OnRestore met du temps à s'executer
+	-- Sans ce test la boucle ci-dessous plante car self.TArmorSets n'est pas un tableau, mais nil
+	if not self.tArmorSets then
+		self.tArmorSets = {}
 		self:CreateArmorSet() -- Au premier lancement de l'addon.
 	end
 
@@ -469,17 +538,22 @@ function Dressing:RefreshArmorSets()
 	end
 end
 
--- Dessine un nouveau set d'armure 
+-- Dessine un set d'armure 
 function Dressing:DrawArmorSet(nArmorSetId, tArmorSet, tBudget)
 	-- Dessine le cadre du set et son nom
-	self.wndMainContainer = self.wndMain:FindChild("MainContainer")
-	self.wndArmorSet = Apollo.LoadForm(self.xmlDoc, "ArmorSet", self.wndMainContainer, self)
-	self.wndMainContainer:ArrangeChildrenVert(0)
-	self.wndArmorSet:Show(true)
-	self.wndArmorSet:FindChild("ArmorSetName"):SetText(tArmorSet.strName)
+	local wndMainContainer = self.wndMain:FindChild("MainContainer")
+	local wndArmorSet = Apollo.LoadForm(self.xmlDoc, "ArmorSet", wndMainContainer, self)
+	wndArmorSet:FindChild("ArmorSetFrame"):FindChild("ArmorSetName"):SetText(tArmorSet.strName)
+	
 	-- Dessine les boutons d'armures et les alignes horizontalement
-	self:DrawArmorBtn(nArmorSetId, tArmorSet, self.wndArmorSet:FindChild("ArmorSetContainer"))
-	self.wndArmorSet:FindChild("ArmorSetContainer"):ArrangeChildrenHorz(0)
+	self:DrawArmorBtn(nArmorSetId, tArmorSet, wndArmorSet:FindChild("ArmorSetFrame"):FindChild("ArmorSetContainer"))
+	wndArmorSet:FindChild("ArmorSetFrame"):FindChild("ArmorSetContainer"):ArrangeChildrenHorz(0)
+
+	-- Stock le numéro de ce set dans le champs texte qui contient le nom. On en aura besoin pour changer le nom
+	wndArmorSet:FindChild("ArmorSetFrame"):FindChild("ArmorSetName"):SetData(nArmorSetId)	
+	
+	-- Stock le numéro de ce set dans le bouton Delete. On en aura besoin pour savoir que ce bouton correspond à ce set
+	wndArmorSet:FindChild("ArmorSetFrame"):FindChild("DeleteArmorSetButton"):SetData(nArmorSetId)
 
 	-- Affichage de la somme des stats des objets
 	-- Armure : tBudget.nArmor
@@ -488,6 +562,9 @@ function Dressing:DrawArmorSet(nArmorSetId, tArmorSet, tBudget)
 		-- Nom de la stats : Item.GetPropertyName(k)
 		-- Valeur de cette stat : v
 	end
+
+	wndMainContainer:ArrangeChildrenVert(0)
+	wndArmorSet:Show(true)
 end
 
 -- Dessine les boutons de sélection d'armures dans la fenêtre wndArmorSet
@@ -496,7 +573,7 @@ end
 -- arg 3 : Defini la fenetre dans laquelle dessiner les boutons
 function Dressing:DrawArmorBtn(nArmorSetId, tArmorSet, wndParent)
 	local k,v = nil,nil
-	for k,v in pairs(tArmorSet.tItems) do
+	for k,v in ipairs(tArmorSet.tItems) do
 		local wndArmorBtnSpacer = Apollo.LoadForm(self.xmlDoc, "ArmorBtnSpacer", wndParent, self)
 		-- On va avoir besoin des offsets afin de redimensionner le bouton
 		local nLeft, nTop, nRight, nBottom = wndArmorBtnSpacer:GetAnchorOffsets()
@@ -537,7 +614,8 @@ end
 function Dressing:DrawItemPopdownFrame(wndArmorBtn)
 	-- 1e parent est ArmorBtnSpacer
 	-- 2e parent est ArmorSetContainer
-	local wndItemPopdownFrame = wndArmorBtn:GetParent():GetParent():FindChild("ItemPopdownFrame")
+	-- 3e parent est ArmorSetFrame
+	local wndItemPopdownFrame = wndArmorBtn:GetParent():GetParent():GetParent():FindChild("ItemPopdownFrame")
 	-- Il y a de fortes chances que la fenetre contenait déjà des boutons alors on la vide
 	wndItemPopdownFrame:DestroyChildren()
 
@@ -621,49 +699,6 @@ function Dressing:DrawItemBtn(wndParent, wndArmorBtn, tAllArmorForThatSlot)
 
 		-- TODO Generer la tooltip
 		wndItemBtn:Show(true)
-	end
-end
-
------------------------------------------------------------------------------------------------
---  Dressing Events (Mostly Buttons events)
------------------------------------------------------------------------------------------------
-
--- when a armor is cliked in the wndArmorSet
--- Affiche la fenetre popdown
-function Dressing:OnArmorBtn(wndHandler, wndControl)
-	-- wndHandler est ArmorBtn
-	self:DrawItemPopdownFrame(wndHandler)
-end
-
--- when a armor is clicked in the popdown window
--- Valide le choix de l'armure
-function Dressing:OnChooseItemBtn(wndHandler, wndControl)
-	-- Ici j'utilise GetSprite car c'est comme ça que j'ai appliqué la texture à l'icone
-	-- du bouton. Ce n'est plus un objet du jeu avec la méthode GetIcon. Si un jour je trouve
-	-- comment garder la référence à l'objet je pourrais utiliser GetIcon() à nouveau.
-	--local strChoosedIcon = wndHandler:FindChild("ItemBtnIcon"):GetSprite()
-
-	--local tArmorBtnAndItemInfo = wndHandler:GetData()
-	--local strChoosedIcon = Item:GetDataFromId(wndArmorBtn.nItemId)
-	--wndHandler:GetParent():GetParent():FindChild("ArmorBtnIcon"):SetSprite(strChoosedIcon)
-
-	local tArmorBtnAndItemInfo = wndHandler:GetData()
-	-- Pour info : tArmorBtnAndItemInfo.nItemId
-	-- Pour info : tArmorBtnAndItemInfo.wndArmorBtn
-	local tBtnData = tArmorBtnAndItemInfo.wndArmorBtn:GetData()
-	-- Pour info : tBtnData.nArmorSetId
-	-- Pour info : tBtnData.nArmorSlotId
-	-- parcourir self.tArmorSets et y écrire la variable wndArmorBtn.nItemId
-	for k,v in pairs(self.tArmorSets) do
-		if k == tBtnData.nArmorSetId then
-			for _,j in pairs(v.tItems) do
-				if j.nArmorSlotId == tBtnData.nArmorSlotId then
-					j.nItemId = tArmorBtnAndItemInfo.nItemId
-					self:RefreshArmorSets()
-					return
-				end
-			end
-		end
 	end
 end
 
