@@ -431,7 +431,7 @@ function Dressing:GetAllItemsForThatSlot(nSlotId)
 	return tSelectedItems
 end
 
--- From http://stackoverflow.com/questions/640642/how-do-you-copy-a-lua-table-by-value
+-- http://lua-users.org/wiki/CopyTable
 function Dressing:DeepCopy(orig)
     local orig_type = type(orig)
     local copy
